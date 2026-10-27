@@ -13,7 +13,8 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY entrypoint.sh /entrypoint.sh
 
 # Set proper permissions for the nginx html directory and entrypoint script
-RUN chmod -R 755 /usr/share/nginx/html && \
+RUN sed -i 's/\r$//' /entrypoint.sh && \
+    chmod -R 755 /usr/share/nginx/html && \
     chown -R nginx:nginx /usr/share/nginx/html && \
     chmod +x /entrypoint.sh
 
