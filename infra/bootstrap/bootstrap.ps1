@@ -64,19 +64,29 @@ if (-not (Invoke-Az ad sp list --filter "appId eq '$clientId'" --query '[0].id' 
 }
 $spObjectId = (Invoke-Az ad sp show --id $clientId --query id -o tsv)
 
-$subject = "repo:${Repo}:environment:${Environment}"
-$existing = Invoke-Az ad app federated-credential list --id $clientId --query "[?subject=='$subject'].name" -o tsv
-if (-not $existing) {
-    $credential = @{
-        name      = "github-$Environment"
-        issuer    = 'https://token.actions.githubusercontent.com'
-        subject   = $subject
-        audiences = @('api://AzureADTokenExchange')
-    } | ConvertTo-Json -Compress
-    $file = New-TemporaryFile
-    Set-Content -Path $file -Value $credential
-    Invoke-Az ad app federated-credential create --id $clientId --parameters "@$file" -o none
-    Remove-Item $file
+# Repositories can issue tokens with either the name-based or the immutable ID-based subject,
+# so register both.
+$repoInfo = & gh api "repos/$Repo" | ConvertFrom-Json
+$owner, $repoName = $Repo -split '/'
+$subjects = @{
+    "github-$Environment"           = "repo:${Repo}:environment:${Environment}"
+    "github-$Environment-immutable" = "repo:$owner@$($repoInfo.owner.id)/$repoName@$($repoInfo.id):environment:${Environment}"
+}
+foreach ($name in $subjects.Keys) {
+    $subject = $subjects[$name]
+    $existing = Invoke-Az ad app federated-credential list --id $clientId --query "[?subject=='$subject'].name" -o tsv
+    if (-not $existing) {
+        $credential = @{
+            name      = $name
+            issuer    = 'https://token.actions.githubusercontent.com'
+            subject   = $subject
+            audiences = @('api://AzureADTokenExchange')
+        } | ConvertTo-Json -Compress
+        $file = New-TemporaryFile
+        Set-Content -Path $file -Value $credential
+        Invoke-Az ad app federated-credential create --id $clientId --parameters "@$file" -o none
+        Remove-Item $file
+    }
 }
 
 Write-Host '==> Role assignments'
