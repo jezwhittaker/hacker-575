@@ -1,5 +1,7 @@
 using OctoSupply.Api.Data;
 using OctoSupply.Api.Repositories;
+using OctoSupply.Api.Services;
+using OctoSupply.Api.Services.Payments;
 using OctoSupply.Api.Utils;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,6 +16,11 @@ builder.Services.AddOpenApi();
 builder.Services.AddSingleton<SqliteConnectionFactory>();
 builder.Services.AddSingleton<DatabaseMigrator>();
 builder.Services.AddScoped<BranchesRepository>();
+builder.Services.AddScoped<CartsRepository>();
+builder.Services.AddScoped<CheckoutRepository>();
+builder.Services.AddScoped<CheckoutService>();
+builder.Services.AddSingleton(PaymentOptions.FromEnvironment());
+builder.Services.AddSingleton(sp => PaymentProviderFactory.Create(sp.GetRequiredService<PaymentOptions>()));
 builder.Services.AddScoped<DeliveriesRepository>();
 builder.Services.AddScoped<HeadquartersRepository>();
 builder.Services.AddScoped<OrderDetailDeliveriesRepository>();
@@ -58,5 +65,6 @@ app.MapControllers();
 
 var migrator = app.Services.GetRequiredService<DatabaseMigrator>();
 await migrator.InitializeAsync(seedOnStartup: true);
+_ = app.Services.GetRequiredService<IPaymentProvider>();
 
 app.Run();

@@ -42,6 +42,7 @@ public sealed class SuppliersRepositoryTests
         finally
         {
             Environment.SetEnvironmentVariable("DB_FILE", null);
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
@@ -68,6 +69,7 @@ public sealed class SuppliersRepositoryTests
         finally
         {
             Environment.SetEnvironmentVariable("DB_FILE", null);
+            Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
             if (File.Exists(dbPath))
             {
                 File.Delete(dbPath);
