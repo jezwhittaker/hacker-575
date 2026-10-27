@@ -34,6 +34,12 @@ variable "payment_currency" {
   default     = "USD"
 }
 
+variable "alert_email" {
+  description = "Optional email address for alert notifications."
+  type        = string
+  default     = ""
+}
+
 variable "payment_api_key" {
   description = "Optional payment provider API key (PAYMENT_API_KEY). Supply via TF_VAR_payment_api_key, never in source."
   type        = string

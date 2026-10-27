@@ -42,6 +42,23 @@ Pull requests run **build and test** only. Pushes to `master` and manual runs al
 
 The workflow summary lists the frontend and API URLs.
 
+## Monitoring and the Azure SRE Agent
+
+Telemetry provisioned by Terraform ([monitoring.tf](terraform/monitoring.tf)):
+
+- API endpoints: `GET /health` (liveness) and `GET /ready` (readiness, checks SQLite; 503 when the database is unavailable). The Container App probes use them.
+- Application Insights (workspace-based, backed by `log-octocat-dev`). The API exports requests, dependencies, logs and metrics when `APPLICATIONINSIGHTS_CONNECTION_STRING` is set (stored as a Container App secret).
+- Alerts: HTTP 5xx, container restarts (crash loops), and an availability test against `/ready`, all routed to action group `ag-octocat-dev-ops` (set `TF_VAR_alert_email` to add an email receiver).
+
+Connect the SRE Agent (manual, portal; sign-in and MFA required):
+
+1. Open <https://sre.azure.com> and create an agent in the subscription, region of your choice.
+2. Add resource group `rg-octocat-dev` as a managed resource group. Use **Review** run mode so the agent proposes and you approve actions.
+3. Check the agent identity has Reader on the group (Contributor only if you want it to apply fixes).
+4. Optionally connect the GitHub repo so the agent can correlate failures with deployments.
+
+Fault drill: run the **Deploy to Azure** workflow manually (Actions, Run workflow) and set `payment_provider` to an invalid value such as `bogus`. The API fails fast at startup, the new revision crash-loops, and the restart and availability alerts fire. Ask the agent "why is octocat-dev-api unhealthy?". Remediate by reverting the setting (or `git revert`) and redeploying.
+
 ## Running Terraform locally
 
 ```powershell

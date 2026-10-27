@@ -121,6 +121,11 @@ resource "azurerm_container_app" "api" {
     }
   }
 
+  secret {
+    name  = "appinsights-connection-string"
+    value = azurerm_application_insights.main.connection_string
+  }
+
   ingress {
     external_enabled = true
     target_port      = 3000
@@ -187,15 +192,20 @@ resource "azurerm_container_app" "api" {
         }
       }
 
+      env {
+        name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
+        secret_name = "appinsights-connection-string"
+      }
+
       liveness_probe {
         transport = "HTTP"
         port      = 3000
-        path      = "/"
+        path      = "/health"
       }
       readiness_probe {
         transport = "HTTP"
         port      = 3000
-        path      = "/"
+        path      = "/ready"
       }
     }
   }

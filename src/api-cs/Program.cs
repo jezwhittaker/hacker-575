@@ -1,3 +1,4 @@
+using Azure.Monitor.OpenTelemetry.AspNetCore;
 using OctoSupply.Api.Data;
 using OctoSupply.Api.Repositories;
 using OctoSupply.Api.Services;
@@ -15,6 +16,13 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddSingleton<SqliteConnectionFactory>();
 builder.Services.AddSingleton<DatabaseMigrator>();
+builder.Services.AddSingleton<ReadinessService>();
+
+// Telemetry is only exported when Application Insights is configured (set in Azure).
+if (!string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_CONNECTION_STRING")))
+{
+    builder.Services.AddOpenTelemetry().UseAzureMonitor();
+}
 builder.Services.AddScoped<BranchesRepository>();
 builder.Services.AddScoped<CartsRepository>();
 builder.Services.AddScoped<CheckoutRepository>();
@@ -61,6 +69,13 @@ app.UseCors("ApiCors");
 app.UseMiddleware<ErrorHandlingMiddleware>();
 
 app.MapGet("/", () => "Hello, world!");
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/ready", async (ReadinessService readiness) =>
+{
+    var result = await readiness.CheckAsync();
+    var body = new { status = result.Ready ? "ready" : "not ready", database = result.Database };
+    return result.Ready ? Results.Ok(body) : Results.Json(body, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
 app.MapControllers();
 
 var migrator = app.Services.GetRequiredService<DatabaseMigrator>();

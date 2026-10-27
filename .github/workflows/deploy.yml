@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      payment_provider:
+        description: 'PAYMENT_PROVIDER for the API (use an invalid value only for the SRE fault drill)'
+        required: false
+        default: simulated
 
 permissions:
   contents: read
@@ -79,6 +84,8 @@ jobs:
       ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       TF_VAR_image_tag: ${{ github.sha }}
       TF_VAR_payment_api_key: ${{ secrets.PAYMENT_API_KEY }}
+      TF_VAR_payment_provider: ${{ inputs.payment_provider || 'simulated' }}
+      TF_VAR_alert_email: ${{ vars.ALERT_EMAIL }}
     steps:
       - uses: actions/checkout@v4
 
