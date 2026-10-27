@@ -6,21 +6,14 @@ ifeq ($(OS),Windows_NT)
     DETECTED_OS := Windows
     RM_RF = powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue"
     MKDIR_P = powershell -Command "New-Item -ItemType Directory -Force -Path"
-    PYTHON_CMD = python
-    PYTHON_API_EXEC = $(PYTHON_CMD)
 else
     DETECTED_OS := $(shell uname -s)
     RM_RF = rm -rf
     MKDIR_P = mkdir -p
-    PYTHON_CMD ?= python3
-    PYTHON_API_EXEC = ./.venv/bin/python
 endif
 
-API_TS_DIR := api-ts
 API_CS_DIR := api-cs
 API_CS_TEST_DIR := api-cs-tests
-API_PY_DIR := api-py
-API_JAVA_DIR := api-java
 FRONTEND_DIR := frontend
 PLAYWRIGHT_BROWSERS_PATH ?= $(HOME)/.cache/ms-playwright
 
@@ -32,13 +25,7 @@ define resolve_api_url
 $(if $(strip $(CODESPACE_NAME)),https://$(CODESPACE_NAME)-$(1).$(CODESPACES_DOMAIN),http://localhost:$(1))
 endef
 
-TS_API_URL := $(call resolve_api_url,3000)
 CS_API_URL := $(call resolve_api_url,3000)
-PY_API_URL := $(call resolve_api_url,3000)
-JAVA_API_URL := $(call resolve_api_url,3000)
-
-# Default API target (TypeScript)
-API_DIR := $(API_TS_DIR)
 
 .DEFAULT_GOAL := help
 
@@ -52,33 +39,17 @@ help: ## Display this help message
 info: ## Show detected OS and directories
 	@echo "Detected OS:        $(DETECTED_OS)"
 	@echo "Frontend Directory: $(FRONTEND_DIR)"
-	@echo "API variants:       $(API_TS_DIR)  $(API_CS_DIR)  $(API_PY_DIR)  $(API_JAVA_DIR)"
+	@echo "API:                $(API_CS_DIR)"
 
 ##@ Installation
 
 .PHONY: install
-install: install-ts install-frontend ## Install all dependencies (all variants)
-
-.PHONY: install-ts
-install-ts: ## Install TypeScript API dependencies
-	cd $(API_TS_DIR) && npm install
+install: install-cs install-frontend ## Install all dependencies
 
 .PHONY: install-cs
 install-cs: ## Restore C# API NuGet packages
 	cd $(API_CS_DIR) && dotnet restore
 	cd $(API_CS_TEST_DIR) && dotnet restore
-
-.PHONY: install-py
-install-py: ## Install Python API dependencies
-ifeq ($(OS),Windows_NT)
-	cd $(API_PY_DIR) && $(PYTHON_CMD) -m pip install -r requirements.txt
-else
-	cd $(API_PY_DIR) && $(PYTHON_CMD) -m venv .venv && $(PYTHON_API_EXEC) -m pip install -r requirements.txt
-endif
-
-.PHONY: install-java
-install-java: ## Download Java API Maven dependencies
-	cd $(API_JAVA_DIR) && mvn dependency:resolve -q
 
 .PHONY: install-frontend
 install-frontend: ## Install frontend dependencies
@@ -87,18 +58,7 @@ install-frontend: ## Install frontend dependencies
 ##@ Development — Full Stack (API + Frontend)
 
 .PHONY: dev
-dev: dev-ts ## Start TypeScript API + frontend (default)
-
-.PHONY: dev-ts
-dev-ts: ## Start TypeScript API (port 3000) + frontend
-ifeq ($(OS),Windows_NT)
-	npx concurrently --kill-others "cd $(API_TS_DIR) && npm run dev" "cd $(FRONTEND_DIR) && set VITE_API_URL=$(TS_API_URL) && npm run dev"
-else
-	@trap 'kill 0' INT; \
-	(cd $(API_TS_DIR) && npm run dev) & \
-	(cd $(FRONTEND_DIR) && VITE_API_URL=$(TS_API_URL) npm run dev) & \
-	wait
-endif
+dev: dev-cs ## Start C# API + frontend (default)
 
 .PHONY: dev-cs
 dev-cs: ## Start C# API (port 3000) + frontend
@@ -111,80 +71,24 @@ else
 	wait
 endif
 
-.PHONY: dev-py
-dev-py: ## Start Python API (port 3000) + frontend
-ifeq ($(OS),Windows_NT)
-	npx concurrently --kill-others "cd $(API_PY_DIR) && $(PYTHON_API_EXEC) -m uvicorn main:app --reload --port 3000" "cd $(FRONTEND_DIR) && set VITE_API_URL=$(PY_API_URL) && npm run dev"
-else
-	@trap 'kill 0' INT; \
-	(cd $(API_PY_DIR) && $(PYTHON_API_EXEC) -m uvicorn main:app --reload --port 3000 --host 0.0.0.0) & \
-	(cd $(FRONTEND_DIR) && VITE_API_URL=$(PY_API_URL) npm run dev) & \
-	wait
-endif
-
-.PHONY: dev-java
-dev-java: ## Start Java API (port 3000) + frontend
-ifeq ($(OS),Windows_NT)
-	npx concurrently --kill-others "cd $(API_JAVA_DIR) && mvn spring-boot:run" "cd $(FRONTEND_DIR) && set VITE_API_URL=$(JAVA_API_URL) && npm run dev"
-else
-	@trap 'kill 0' INT; \
-	(cd $(API_JAVA_DIR) && mvn spring-boot:run) & \
-	(cd $(FRONTEND_DIR) && VITE_API_URL=$(JAVA_API_URL) npm run dev) & \
-	wait
-endif
-
 ##@ Development — API Only
-
-.PHONY: dev-api-ts
-dev-api-ts: ## Start only the TypeScript API (port 3000)
-	cd $(API_TS_DIR) && npm run dev
 
 .PHONY: dev-api-cs
 dev-api-cs: ## Start only the C# API (port 3000)
 	cd $(API_CS_DIR) && PORT=3000 dotnet run
 
-.PHONY: dev-api-py
-dev-api-py: ## Start only the Python API (port 3000)
-	cd $(API_PY_DIR) && $(PYTHON_API_EXEC) -m uvicorn main:app --reload --port 3000 --host 0.0.0.0
-
-.PHONY: dev-api-java
-dev-api-java: ## Start only the Java API (port 3000)
-	cd $(API_JAVA_DIR) && mvn spring-boot:run
-
 .PHONY: dev-frontend
-dev-frontend: ## Start only the frontend (points to TypeScript API by default)
+dev-frontend: ## Start only the frontend
 	cd $(FRONTEND_DIR) && npm run dev
-
-##@ Database
-
-.PHONY: db-init
-db-init: ## Initialize database schema (TypeScript runner)
-	cd $(API_TS_DIR) && npm run db:init:dev
-
-.PHONY: db-seed
-db-seed: ## Initialize and seed database with sample data (TypeScript runner)
-	cd $(API_TS_DIR) && npm run db:seed:dev
 
 ##@ Building
 
 .PHONY: build
-build: build-ts build-frontend ## Build TypeScript API + frontend
-
-.PHONY: build-ts
-build-ts: ## Build the TypeScript API
-	cd $(API_TS_DIR) && npm run build
+build: build-cs build-frontend ## Build C# API + frontend
 
 .PHONY: build-cs
 build-cs: ## Build the C# API
 	cd $(API_CS_DIR) && dotnet build -c Release
-
-.PHONY: build-py
-build-py: ## Validate Python API (no compile step; checks imports)
-	cd $(API_PY_DIR) && $(PYTHON_API_EXEC) -m py_compile main.py
-
-.PHONY: build-java
-build-java: ## Build the Java API (Maven)
-	cd $(API_JAVA_DIR) && mvn package -DskipTests -q
 
 .PHONY: build-frontend
 build-frontend: ## Build the frontend
@@ -193,23 +97,11 @@ build-frontend: ## Build the frontend
 ##@ Testing
 
 .PHONY: test
-test: test-ts test-frontend ## Run TypeScript API tests + frontend tests
-
-.PHONY: test-ts
-test-ts: ## Run TypeScript API tests
-	cd $(API_TS_DIR) && npm run test
+test: test-cs test-frontend ## Run C# API tests + frontend tests
 
 .PHONY: test-cs
 test-cs: ## Run C# API tests
 	cd $(API_CS_TEST_DIR) && dotnet test
-
-.PHONY: test-py
-test-py: ## Run Python API tests
-	cd $(API_PY_DIR) && $(PYTHON_API_EXEC) -m pytest
-
-.PHONY: test-java
-test-java: ## Run Java API tests
-	cd $(API_JAVA_DIR) && mvn test
 
 .PHONY: install-playwright-browsers
 install-playwright-browsers: ## Install Playwright browser binaries used by frontend e2e tests
@@ -229,37 +121,19 @@ test-frontend: install-playwright-browsers ## Run frontend tests
 test-e2e: install-playwright-browsers ## Run end-to-end tests
 	cd $(FRONTEND_DIR) && PLAYWRIGHT_BROWSERS_PATH="$(PLAYWRIGHT_BROWSERS_PATH)" npm run test:e2e
 
-.PHONY: test-coverage
-test-coverage: ## Run TypeScript API tests with coverage
-	cd $(API_TS_DIR) && npm run test:coverage
-
 ##@ Linting
 
 .PHONY: lint
-lint: ## Lint TypeScript API + frontend
-	cd $(API_TS_DIR) && npm run lint
+lint: ## Lint the frontend
 	cd $(FRONTEND_DIR) && npm run lint
 
 .PHONY: lint-fix
-lint-fix: ## Lint and auto-fix TypeScript issues
-	cd $(API_TS_DIR) && npm run lint:fix
+lint-fix: ## Lint and auto-fix frontend issues
 	cd $(FRONTEND_DIR) && npm run lint -- --fix
 
 .PHONY: format
-format: ## Format TypeScript code with prettier
-	npx prettier --write "$(API_TS_DIR)/**/*.{ts,tsx}" "$(FRONTEND_DIR)/**/*.{ts,tsx}"
-
-##@ Code Generation
-
-.PHONY: swagger
-swagger: ## Regenerate Swagger/OpenAPI spec for TypeScript API
-	cd $(API_TS_DIR) && npm run swagger:generate
-
-##@ Production
-
-.PHONY: start
-start: ## Start TypeScript API production server
-	cd $(API_TS_DIR) && npm start
+format: ## Format frontend code with prettier
+	npx prettier --write "$(FRONTEND_DIR)/**/*.{ts,tsx}"
 
 ##@ Docker
 
@@ -278,10 +152,7 @@ docker-down: ## Stop Docker containers
 ##@ Cleaning
 
 .PHONY: clean
-clean: ## Clean build artifacts and node_modules for all variants
-	$(RM_RF) $(API_TS_DIR)/node_modules $(API_TS_DIR)/dist $(API_TS_DIR)/data
+clean: ## Clean build artifacts and node_modules
 	$(RM_RF) $(API_CS_DIR)/bin $(API_CS_DIR)/obj $(API_CS_DIR)/data
 	$(RM_RF) $(API_CS_TEST_DIR)/bin $(API_CS_TEST_DIR)/obj
-	$(RM_RF) $(API_PY_DIR)/__pycache__ $(API_PY_DIR)/.pytest_cache $(API_PY_DIR)/data $(API_PY_DIR)/.venv
-	$(RM_RF) $(API_JAVA_DIR)/target $(API_JAVA_DIR)/data
 	$(RM_RF) $(FRONTEND_DIR)/node_modules $(FRONTEND_DIR)/dist
