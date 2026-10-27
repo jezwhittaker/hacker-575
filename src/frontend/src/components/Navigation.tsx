@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useTheme } from '../context/ThemeContext';
 import { useState } from 'react';
 
 export default function Navigation() {
   const { isLoggedIn, isAdmin, logout } = useAuth();
+  const { cart } = useCart();
   const { darkMode, toggleTheme } = useTheme();
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
 
@@ -44,6 +46,20 @@ export default function Navigation() {
                 className={`${darkMode ? 'text-light hover:text-primary' : 'text-gray-700 hover:text-primary'} px-3 py-2 rounded-md text-sm font-medium transition-colors`}
               >
                 About us
+              </Link>
+              <Link
+                to="/cart"
+                className={`${darkMode ? 'text-light hover:text-primary' : 'text-gray-700 hover:text-primary'} px-3 py-2 rounded-md text-sm font-medium transition-colors`}
+              >
+                Cart
+                {!!cart?.itemCount && (
+                  <span
+                    className="ml-1 bg-primary text-white rounded-full px-2 py-0.5 text-xs"
+                    aria-label={`${cart.itemCount} items in cart`}
+                  >
+                    {cart.itemCount}
+                  </span>
+                )}
               </Link>
               {isAdmin && (
                 <div className="relative">
