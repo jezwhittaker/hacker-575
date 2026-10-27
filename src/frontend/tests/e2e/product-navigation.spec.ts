@@ -73,4 +73,32 @@ test.describe('Product catalog discovery', () => {
     // And I am prompted to adjust the search filters
     await expect(emptyState).toContainText(/clearing.*changing.*search filters/i);
   });
+
+  test('Keep quantity non-negative and reset it after adding to cart', async ({ page }) => {
+    await page.goto('/products');
+
+    const quantity = page.locator('[aria-label^="Quantity of"]').first();
+    const increase = page.getByRole('button', { name: /^Increase quantity of/ }).first();
+    const decrease = page.getByRole('button', { name: /^Decrease quantity of/ }).first();
+
+    await expect(quantity).toHaveText('0');
+    await decrease.click();
+    await expect(quantity).toHaveText('0');
+
+    await increase.click();
+    await increase.click();
+    await expect(quantity).toHaveText('2');
+
+    const addToCart = page.getByRole('button', { name: /^Add 2 .* to cart$/ });
+    let dialogMessage: string | undefined;
+    page.once('dialog', async (dialog) => {
+      dialogMessage = dialog.message();
+      await dialog.accept();
+    });
+    await addToCart.click();
+    expect(dialogMessage).toBe('Added 2 items to cart');
+
+    await expect(quantity).toHaveText('0');
+    await expect(page.getByRole('button', { name: /^Add 0 .* to cart$/ }).first()).toBeDisabled();
+  });
 });
