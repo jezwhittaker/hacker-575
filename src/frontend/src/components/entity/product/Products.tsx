@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useQuery } from 'react-query';
 import { api } from '../../../api/config';
+import { useCart } from '../../../context/CartContext';
 import { useTheme } from '../../../context/ThemeContext';
 
 interface Product {
@@ -28,6 +29,7 @@ export default function Products() {
   const [showModal, setShowModal] = useState(false);
   const { data: products, isLoading, error } = useQuery('products', fetchProducts);
   const { darkMode } = useTheme();
+  const { addItem } = useCart();
 
   const filteredProducts = products?.filter(
     (product) =>
@@ -42,15 +44,18 @@ export default function Products() {
     }));
   };
 
-  const handleAddToCart = (productId: number) => {
+  const handleAddToCart = async (productId: number) => {
     const quantity = quantities[productId] || 0;
     if (quantity > 0) {
-      // TODO: Implement cart functionality
-      alert(`Added ${quantity} items to cart`);
-      setQuantities((prev) => ({
-        ...prev,
-        [productId]: 0,
-      }));
+      try {
+        await addItem(productId, quantity);
+        setQuantities((prev) => ({
+          ...prev,
+          [productId]: 0,
+        }));
+      } catch {
+        alert('Could not add the item to your cart. Please try again.');
+      }
     }
   };
 

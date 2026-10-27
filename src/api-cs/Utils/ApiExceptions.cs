@@ -37,6 +37,14 @@ public sealed class ConflictException : ApiException
     }
 }
 
+public sealed class PaymentDeclinedException : ApiException
+{
+    public PaymentDeclinedException(string reason)
+        : base($"Payment declined: {reason}", "PAYMENT_DECLINED", StatusCodes.Status402PaymentRequired)
+    {
+    }
+}
+
 public sealed class DatabaseException : ApiException
 {
     public DatabaseException(string message)
