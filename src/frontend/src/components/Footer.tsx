@@ -31,9 +31,9 @@ const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <a href="#" className="hover:text-primary">
+                <Link to="/checkout" className="hover:text-primary">
                   Checkout
-                </a>
+                </Link>
               </li>
               <li>
                 <a href="#" className="hover:text-primary">

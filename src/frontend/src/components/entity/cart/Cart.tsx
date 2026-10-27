@@ -111,6 +111,15 @@ export default function CartPage() {
                 {formatCurrency(cart.total)}
               </span>
             </div>
+
+            <div className="flex justify-end">
+              <Link
+                to="/checkout"
+                className="bg-primary hover:bg-accent text-white px-6 py-2 rounded-lg transition-colors"
+              >
+                Proceed to checkout
+              </Link>
+            </div>
           </>
         )}
       </div>

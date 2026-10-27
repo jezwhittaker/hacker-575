@@ -29,6 +29,7 @@ interface CartContextType {
   addItem: (productId: number, quantity: number) => Promise<Cart>;
   updateItem: (productId: number, quantity: number) => Promise<Cart>;
   removeItem: (productId: number) => Promise<Cart>;
+  refreshCart: () => Promise<void>;
 }
 
 const CART_ID_KEY = 'cartId';
@@ -113,6 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem: (productId, quantity) => addMutation.mutateAsync({ productId, quantity }),
         updateItem: (productId, quantity) => updateMutation.mutateAsync({ productId, quantity }),
         removeItem: (productId) => removeMutation.mutateAsync(productId),
+        refreshCart: () => queryClient.invalidateQueries(CART_QUERY_KEY),
       }}
     >
       {children}
