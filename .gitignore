@@ -66,3 +66,10 @@ src/api-py/uploads/
 
 # General logs
 *.log
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log

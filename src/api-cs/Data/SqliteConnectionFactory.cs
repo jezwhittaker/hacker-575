@@ -24,10 +24,18 @@ public sealed class SqliteConnectionFactory(ILogger<SqliteConnectionFactory> log
         var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync();
 
+        // WAL needs shared memory and is unsafe on network file systems such as Azure Files,
+        // so deployments on those volumes set SQLITE_JOURNAL_MODE=DELETE.
+        var journalMode = Environment.GetEnvironmentVariable("SQLITE_JOURNAL_MODE")?.Trim().ToUpperInvariant();
+        if (journalMode is not ("WAL" or "DELETE" or "TRUNCATE" or "PERSIST"))
+        {
+            journalMode = "WAL";
+        }
+
         await using var pragma = connection.CreateCommand();
-        pragma.CommandText = """
+        pragma.CommandText = $"""
             PRAGMA foreign_keys = ON;
-            PRAGMA journal_mode = WAL;
+            PRAGMA journal_mode = {journalMode};
             PRAGMA busy_timeout = 30000;
             """;
         await pragma.ExecuteNonQueryAsync();
